@@ -566,6 +566,7 @@ tr:hover td{background:rgba(99,102,241,.04)}
 // ── 状态 ─────────────────────────────────────────────────────
 const BASE = <?= json_encode(ADMIN_SECRET_PATH !== '' ? '/' . ADMIN_SECRET_PATH : '') ?>;
 let allLogs = [];
+let subscribePath = <?= json_encode($_preSg['subscribe_path'] ?? '/api/v1/client/subscribe', JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
 let logMode = 'today';   // 'today' | 'all'
 let logLimit = 100;      // 0=瀑布流（无限制）
 let logPage = 1;         // 当前页（分页模式）
@@ -770,12 +771,16 @@ function isCloudIp(ip) {
 // ── 日志 ──────────────────────────────────────────────────────
 async function loadLogs() {
   document.getElementById('log-tbody').innerHTML = '<tr><td colspan="7" class="loading">加载中…</td></tr>';
-  const [logsData, blData, cloudData, wlData] = await Promise.all([
+  const [logsData, blData, cloudData, wlData, settingsData] = await Promise.all([
     apiFetch('/api/logs.php?mode=' + logMode),
     apiFetch('/api/blacklist.php?no_idc=1'),
     apiFetch('/api/blacklist.php?cloud_cidrs=1'),
     apiFetch('/api/whitelist.php'),
+    apiFetch('/api/settings.php'),
   ]);
+  if (settingsData.ok && settingsData.settings?.subscribe_path) {
+    subscribePath = settingsData.settings.subscribe_path;
+  }
   blacklistIpSet = new Set((blData.entries || []).map(e => e.ip));
   whitelistIpSet = new Set((wlData.entries || []).map(e => e.ip));
   cloudCidrs = cloudData.cidrs || [];
@@ -797,7 +802,8 @@ function renderLogs() {
   const subOnly = document.querySelector('input[name="sub-filter"][value="subscribe"]').checked;
 
   let rows = allLogs.filter(l => {
-    if (subOnly && !l.request.includes('/api/v1/client/subscribe')) return false;
+    const requestTarget = l.request.match(/^\S+\s+(\S+)/)?.[1] || '';
+    if (subOnly && !requestTarget.split('?')[0].startsWith(subscribePath)) return false;
     if (fIp     && !l.ip.toLowerCase().includes(fIp)) return false;
     if (fStatus && String(l.status) !== fStatus) return false;
     if (fToken  && !l.token.toLowerCase().includes(fToken)) return false;
@@ -1698,6 +1704,7 @@ async function loadSettings() {
   const data = await apiFetch('/api/settings.php');
   if (!data.ok) { toast('加载设置失败: ' + (data.error||''), 'err'); return; }
   currentSettings = data.settings || {};
+  if (currentSettings.subscribe_path) subscribePath = currentSettings.subscribe_path;
   // 填充界面设置
   document.getElementById('cfg-site-title').value   = currentSettings.site_title || '';
   document.getElementById('cfg-page-title').value   = currentSettings.page_title || '';
