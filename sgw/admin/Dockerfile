@@ -2,6 +2,7 @@ FROM php:8.2-fpm-alpine
 
 RUN apk add --no-cache nginx docker-cli tzdata
 ENV TZ=Asia/Shanghai
+RUN printf '%s\n' 'date.timezone=Asia/Shanghai' > /usr/local/etc/php/conf.d/zz-timezone.ini
 
 # php-fpm + nginx 配置
 COPY nginx.conf /etc/nginx/nginx.conf
