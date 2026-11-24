@@ -2,10 +2,11 @@ location ^~ ${SUBSCRIBE_PATH} {
 
     if ($whitelist_ip = 1) { set $block_reason ""; }
 
-    if ($is_cloud_ip = 1)       { set $block_reason "cloud"; }
     if ($bad_subscribe_ua = 1)  { set $block_reason "ua"; }
     if ($is_custom_bad_ua = 1)  { set $block_reason "ua"; }
     if ($is_ua_whitelisted = 1) { set $block_reason ""; }
+    # UA 白名单只豁免 UA 拦截，云 IP 仍需拦截。
+    if ($is_cloud_ip = 1)       { set $block_reason "cloud"; }
 
     if ($whitelist_ip = 1) { set $block_reason ""; }
 
